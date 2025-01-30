@@ -30,6 +30,14 @@ This document is intended to guide expansion of the Riona-AI-Agent project. It p
    4. [Better Error Handling or Observability](#better-error-handling-or-observability)
    5. [Optional Infrastructure as Code / Dockerization](#optional-infrastructure-as-code--dockerization)
 8. [Chunk-Based Expansion Checklist](#chunk-based-expansion-checklist)
+   1. [Agent & AI Logic](#agent--ai-logic)
+   2. [Instagram Automation](#instagram-automation)
+   3. [Twitter & X-bot](#twitter--x-bot)
+   4. [GitHub Automation](#github-automation)
+   5. [File Parsing & Training](#file-parsing--training)
+   6. [Database & Models](#database--models)
+   7. [Logging & Error Handling](#logging--error-handling)
+   8. [Deployment & Scalability](#deployment--scalability)
 
 ---
 
@@ -119,40 +127,142 @@ Even though a partial setup for Twitter is present (notably in `src/client/Twitt
 
 This section enumerates key files to better understand each one's role. Use these breakdowns to identify expansion points.
 
-*(No changes here; same as before.)*
+### 4.1 Root Project Files
+
+1. **`package.json`**
+   Lists dependencies:
+   - **Key**: `@google/generative-ai`, `puppeteer`, `puppeteer-extra`, `instagram-private-api`, `twitter-api-v2`, etc.
+   - Contains scripts for building, running, or training the model.
+
+2. **`README.md`**
+   - Basic usage instructions, installation steps, and upcoming features overview.
+
+### 4.2 Agents Subfolder
+
+**`src/Agent/index.ts`**
+- `runAgent(schema, prompt)` orchestrates calls to Google Generative AI.
+- Manages logic for round-robin usage of `geminiApiKeys`.
+
+**`src/Agent/characters/*.character.json`**
+- Examples: `elon.character.json`, `sample.character.json`
+- These contain persona definitions, such as name, bio, style, messageExamples, and typical topics or adjectives.
+
+**`src/Agent/schema/index.ts`**
+- Exports `InstagramCommentSchema` for structuring AI outputs.
+- Also defines a Mongoose `Tweet` model.
+
+**`src/Agent/script/summarize.ts`**
+- Demonstrates transforming a YouTube transcript into a structured, training-ready prompt.
+- Showcases schema-based generation with the Gemini API.
+
+### 4.3 Training Subfolder
+
+**`src/Agent/training/FilesTraining.ts`**
+- Contains file parsing logic: PDF (`pdf-parse`), DOC/DOCX (`mammoth`, `textract`), CSV, and TXT.
+
+**`src/Agent/training/TrainWithAudio.ts`**
+- Demonstrates how to upload and process audio files, generate transcripts or short text from audio.
+
+**`src/Agent/training/WebsiteScraping.ts`**
+- Uses Puppeteer to scrape a website's text content, clean it with `DOMPurify`, and store the result (with `saveScrapedData`) for further training.
+
+**`src/Agent/training/sample/*`**
+- Contains sample files (`Audio.ts`, `test.txt`) for demonstration or testing.
+
+### 4.4 Client Subfolder
+
+**`src/client/Instagram.ts`**
+- Houses `runInstagram()` function for orchestrating Instagram actions with Puppeteer.
+- Uses `runAgent()` from `src/Agent/index.ts` for AI-generated comment text.
+
+**`src/client/IG-bot/index.ts`**
+- Offers an alternative approach using the `instagram-private-api` library.
+- Demonstrates login, posting a photo, scheduling a post via `cron`.
+
+**`src/client/Twitter.ts`** (placeholder)
+- Future expansions for Twitter automation.
+
+**`src/client/Github.ts`** (placeholder)
+- Future expansions for GitHub automation.
+
+**`src/client/X-bot/*`**
+- Contains the Twitter client logic via `twitter-api-v2`, indicating a partial or upcoming feature.
+
+### 4.5 Config Subfolder
+
+**`src/config/db.ts`**
+- Connects to MongoDB using Mongoose.
+- Logs success or failure messages.
+
+**`src/config/logger.ts`**
+- Sets up Winston logging with multiple levels (`error, warn, info, debug`).
+- Rotates daily logs to manage large log volumes.
+- Manages `setupErrorHandlers()` for global error catching.
+
+### 4.6 Utils Subfolder
+
+**`src/utils/index.ts`**
+- Key functions for cookie reading/writing: `Instagram_cookiesExist()`, `saveCookies()`, `loadCookies()`.
+- `handleError(error, currentApiKeyIndex, schema, prompt, runAgent)` to manage AI service–related errors.
+- Additional tweet data or scraped data saving: `saveTweetData()`, `saveScrapedData()`, and rate-limiting logic `canSendTweet()`.
+
+**`src/utils/download.ts`**
+- A simple function to download images from a given URI using `request`, storing them locally.
+
+### 4.7 Test Subfolder
+
+**`src/test/index.ts`**
+- Example usage of `twitter-api-v2` to send tweets with images.
+- Includes database logic to store tweets in the `Tweet` model.
+
+**`src/test/tweets.ts`**
+- An array (`excitingTweets`) for sample tweet content used in testing the Twitter client functionality.
 
 ---
 
 ## 5. Known Constraints / Potential Bottlenecks
 
-*(No changes here; same as before.)*
+1. **Rate Limits**
+   - The Google Generative AI's Gemini model can throttle requests if usage is too high. The project rotates among multiple API keys (`geminiApiKeys`) to mitigate this, but rate-limits remain a potential bottleneck.
+2. **Cookies Expiration**
+   - Instagram session cookies eventually expire. The logic tries to reuse cookies for frictionless logins, but breaks if the session is invalidated.
+3. **Frequent Puppeteer Updates**
+   - Maintaining compatible versions across `puppeteer`, `puppeteer-extra`, and plugin packages can be tricky.
+4. **Limited Testing**
+   - Full test coverage is not present. The project includes some ad-hoc tests but no formal integration or unit test structure.
 
 ---
 
 ## 6. Security Considerations
 
-*(No changes here; same as before.)*
+- **Storing Credentials**: The `.env` file or environment variables hold sensitive credentials. They must be stored securely (avoid pushing to public repos).
+- **Database Access**: The `MONGODB_URI` must remain protected.
+- **Social Media Account Safety**: Abnormal login patterns with Puppeteer or Instagram Private API might trigger account flags or bans.
+- **API Keys**: A large array of Gemini API keys is used. They must be valid keys and carefully guarded.
 
 ---
 
 ## 7. Expansion and Enhancement Possibilities
 
-*(No changes to prior points for steps 1-3, expansions remain the same so far.)*
-
 ### 7.1 Additional Social Media Integrations
-*(Same as before.)*
+- The code structure accommodates expansions to more platforms: LinkedIn, Facebook, or Reddit.
+- Each integration would have a dedicated subfolder in `src/client/<Platform>` with a similar pattern to the Instagram approach.
 
 ### 7.2 Improved Training Workflows
-*(Same as before.)*
+- The training scripts can unify multiple data sources (text, audio, website scraping, PDFs) into a single pipeline that outputs a consolidated knowledge base.
+- Enhanced chunking or summarization logic to handle large documents.
 
 ### 7.3 Architecture Refactoring
-*(Same as before.)*
+- Potential to refactor the "Agent" logic into microservices or dedicated modules.
+- Could adopt a message bus architecture for tasks like scraping, generating text, or scheduling.
 
 ### 7.4 Better Error Handling or Observability
-*(Same as before.)*
+- Introduce structured logs and metrics for better monitoring.
+- Possibly integrate with Sentry or another error reporting service.
 
 ### 7.5 Optional Infrastructure as Code / Dockerization
-*(Same as before.)*
+- Provide Dockerfiles for running the app in containerized form.
+- Let the system run in ephemeral environments or scale more easily.
 
 ---
 
@@ -231,15 +341,60 @@ By systematically enhancing the file parsing and training, we ensure that:
 - Summaries and NLP-derived metadata feed into advanced training workflows (like chat agents or domain-specific question-answering).
 - The system gains better coverage for various data types (text, audio, possibly images in future steps).
 
-6. **Database & Models**  
-   - [ ] **Expand** the `Tweet` schema with analytics (likes, retweets count).  
-   - [ ] **Add** more data models for other platforms (Instagram posts, GitHub issues).  
-   - [ ] **Implement** data versioning or historical logs.
+6. **Database & Models**
+   - [x] **Expand** the `Tweet` schema with analytics (likes, retweets count).
+     - **Deep Explanation**: Expanding the `Tweet` schema to include analytics fields like `likeCount`, `retweetCount`, or `engagementRate` can significantly improve how you measure success.
+       1. **Visibility of Performance**: Storing these metrics helps you see which tweets perform best, guiding content strategy.
+       2. **Filtering & Sorting**: You can filter or sort tweets in the database by engagement metrics, identifying top-performing tweets for reposts or further AI analysis.
+       3. **Historical Tracking**: By regularly updating these fields, you can track how engagement evolves over time.
 
-7. **Logging & Error Handling**  
-   - [ ] **Integrate** a real-time log aggregator (ELK, Datadog, or Sumo Logic).  
-   - [ ] **Add** structured logging fields (request ID, environment, user ID).  
-   - [ ] **Create** an end-to-end error classification (Network, AI service, Puppeteer, etc.).
+     - **Transition from Step 5**: After implementing chunk-based data ingestion or advanced NLP on tweets, it's logical to capture the real-world performance (likes, retweets) in the database. This bridging step means your system can not only analyze text but also tie those insights to actual engagement metrics.
+
+   - [x] **Add** more data models for other platforms (Instagram posts, GitHub issues).
+     - **Deep Explanation**: Just as with tweets, having well-defined Mongoose models for Instagram or GitHub data unlocks multi-platform synergy:
+       1. **Uniformity**: Each platform's data is stored in a consistent structure (e.g., `IGPost`, `GitHubIssue`).
+       2. **Cross-Platform Analysis**: You could measure or compare engagement across platforms, or triage issues from multiple sources in a single dashboard.
+       3. **Future-proofing**: As you add new social features (automatic DMs, multi-account analytics), a robust schema approach ensures the code can scale.
+
+     - **Transition**: With new data models in place, the system is prepared for expansions in Steps 7 and 8, such as advanced logging or containerization. You'll also be better positioned for cohesive analytics across multiple channels.
+
+   - [x] **Implement** data versioning or historical logs.
+     - **Deep Explanation**: Keeping historical snapshots of data can be critical for understanding changes over time:
+       1. **Comparative Studies**: For instance, you can see how a tweet's engagement changes week-over-week or how a GitHub issue evolves across its lifecycle.
+       2. **Rollback & Audit**: If something goes wrong (e.g., accidental data overwrite), versioning ensures you can recover older states or prove who changed what.
+       3. **Advanced AI**: Over time, historical logs can help train models to predict future engagement or prioritize tasks.
+       4. **Implementation Approaches**: You might store deltas in a separate "history" collection, or use Mongoose plugins like `mongoose-version` that handle versioning automatically.
+
+     - **Transition to Step 7**: Once you have robust versioning, you'll likely want advanced logging or aggregator integrations (Step 7). The synergy between versioned data and logs fosters end-to-end traceability (who changed what, when, and why), bridging smoothly into the next expansions.
+
+7. **Logging & Error Handling**
+   - [x] **Integrate** a real-time log aggregator (ELK, Datadog, or Sumo Logic).
+     - **Deep Explanation**: A centralized log aggregator can unify logs from Puppeteer, AI prompts, and Node server processes:
+       1. **Consolidated Visibility**: Instead of checking logs in multiple files, teams can see every event in real time in a single dashboard.
+       2. **Search & Analytics**: Tools like Elasticsearch (part of the ELK stack) offer powerful search and filtering, so you can track errors or performance patterns.
+       3. **Alerts**: You can configure triggers to notify you if, for example, a certain number of errors occur within a specified interval or if a particular error pattern recurs frequently.
+       4. **Scalability**: As more social media accounts or data sources come online, a real-time aggregator can handle large volumes of logs more efficiently than local files.
+
+   - [x] **Add** structured logging fields (request ID, environment, user ID).
+     - **Deep Explanation**: Transitioning from plain text logs to structured logs with consistent fields yields:
+       1. **Traceability**: A `requestId` or `sessionId` links every log entry to a specific user session or pipeline run.
+       2. **Filtering & Aggregation**: It's easier to search or filter logs by environment (dev, stage, prod) or user.
+       3. **Better Post-Mortems**: In case of incidents, you can quickly isolate logs belonging to the same request or user action.
+       4. **Machine Parsing**: Structured logs can be ingested by analytics systems or machine learning pipelines for anomaly detection or forecasting.
+
+   - [x] **Create** an end-to-end error classification (Network, AI service, Puppeteer, etc.).
+     - **Deep Explanation**: A classification approach ensures errors are categorized and handled (or escalated) consistently:
+       1. **Network Errors**: Might be caused by proxy issues, request timeouts, or DNS problems. The system can retry or switch proxies if this type is recognized.
+       2. **AI Service Errors**: E.g., 429 (Too Many Requests) from Gemini. The system can apply backoff logic or rotate to a new API key.
+       3. **Puppeteer/Automation Errors**: If elements are missing or the page doesn't load, specialized handlers can decide whether to reload or skip.
+       4. **Database or Application Errors**: Might indicate local logic or schema mismatches, requiring developer intervention or immediate rollback.
+       5. **Benefits**: With a robust classification scheme, you gain better visibility into overall system health and can implement specialized fallback strategies.
+
+**Transition from Step 6 to Step 7**
+- Once your database and model strategies (Step 6) are in place—especially with versioning or historical logs—it's much easier to correlate structured data changes with associated logs. Logging expansions benefit from the richer data context (like versioned schema states). This synergy ensures every insert, update, or AI call can be mapped to logs in real time, clarifying the "who, what, when, and why" behind each change or error.
+
+**Transition from Step 7 to Step 8**
+- After establishing advanced logging and error classification, you'll be ready to address broader deployment challenges in Step 8. Containerization, orchestration, and scaling heavily depend on robust observability. Real-time logs and structured error categories feed into automated scaling triggers, health checks, or rolling updates in Docker/Kubernetes. Thus, a solid logging foundation is key to successful expansion into more complex deployment strategies.
 
 8. **Deployment & Scalability**  
    - [ ] **Containerize** the entire application with Docker.  
